@@ -1,16 +1,32 @@
 defmodule ExFtp do
+  def _split_host_port(host) do
+    String.split(host, ":")
+    |> case do
+      [host, port] ->
+        {host, String.to_integer(port)}
+
+      [host] ->
+        {host, nil}
+    end
+  end
+
   @doc """
   Open connection to ftp by passing hostname, user and password.
   Returns the pid that has to be passed to execute commands on that connection
   """
   def open(host, user, password, options \\ [])
 
-  def open(host, user, password, mode: :sftp) do
+  def open(host, user, password, options) do
+    open(host, user, password, Keyword.get(options, :mode), options)
+  end
+
+  def open(host, user, password, :sftp, options) do
+    {host, port} = _split_host_port(host)
+    port = port || Keyword.get(options, :port, 22)
     :ok = :ssh.start()
 
     {:ok, channel_pid, connection} =
-      :ssh_sftp.start_channel(
-        s_to_l(host),
+      :ssh_sftp.start_channel(s_to_l(host), port,
         user: s_to_l(user),
         password: s_to_l(password),
         silently_accept_hosts: true
@@ -19,7 +35,7 @@ defmodule ExFtp do
     {:sftp, channel_pid, connection}
   end
 
-  def open(host, user, password, options) do
+  def open(host, user, password, _, options) do
     :inets.start()
     {:ok, pid} = :inets.start(:ftpc, Keyword.merge(options, host: host |> String.to_charlist()))
     :ok = :ftp.user(pid, user |> String.to_charlist(), password |> String.to_charlist())
@@ -70,7 +86,7 @@ defmodule ExFtp do
     end
   end
 
-  def cd({:sftp, _connection_ref, _pid}, path, create_if_not_exists) do
+  def cd({:sftp, _connection_ref, _pid}, _path, _) do
     raise "cd for sftp not implemented"
   end
 
@@ -79,8 +95,8 @@ defmodule ExFtp do
     ensure_dir(conn, parts)
   end
 
-  def ensure_dir({:ftp, pid} = conn, dir) when is_list(dir) do
-    [leaf | parent] = dir
+  def ensure_dir({:ftp, _pid} = conn, dir) when is_list(dir) do
+    [_ | parent] = dir
 
     if length(parent) > 0 do
       ensure_dir(conn, parent)
@@ -121,11 +137,20 @@ defmodule ExFtp do
   will return an list of %{name: filename, type: :directory|:file}
   """
   def ls({:ftp, pid}) do
-    {:ok, listing} = :ftp.ls(pid)
-    parse_ls(listing |> List.to_string())
+    :ftp.ls(pid)
+    |> case do
+      {:ok, listing} ->
+        parse_ls(listing |> List.to_string())
+
+      :ok ->
+        []
+
+      err ->
+        err
+    end
   end
 
-  def ls({:sftp, _, pid}) do
+  def ls({:sftp, _, _pid}) do
     raise "ls without path not implemented in sftp"
   end
 
@@ -139,7 +164,7 @@ defmodule ExFtp do
 
     list
     |> Enum.map(&List.to_string/1)
-    |> Enum.filter(&(!(&1 in [".", ".."])))
+    |> Enum.filter(&(&1 not in [".", ".."]))
     |> Enum.map(fn e ->
       :ssh_sftp.opendir(pid, s_to_l("#{path}/#{e}"))
       |> case do
@@ -153,10 +178,10 @@ defmodule ExFtp do
     end)
   end
 
-  def is_directory?({:ftp, pid}, path) do
+  def is_directory?({:ftp, pid}, _path) do
     :ftp.ls(pid)
     |> case do
-      {:ok, list} -> true
+      {:ok, _} -> true
       _ -> false
     end
   end
@@ -164,7 +189,7 @@ defmodule ExFtp do
   def is_directory?({:sftp, pid, _}, path) do
     :ssh_sftp.list_dir(pid, s_to_l(path))
     |> case do
-      {:ok, list} -> true
+      {:ok, _} -> true
       _ -> false
     end
   end
@@ -192,25 +217,6 @@ defmodule ExFtp do
     :ftp.type(pid, :binary)
     result = :ftp.send_bin(pid, binary, filename |> String.to_charlist())
     :ftp.type(pid, :ascii)
-    result
-  end
-
-  @doc """
-  delete a file
-  will return :ok or {:error, reason}
-  """
-  def rm({:ftp, pid}, filename) do
-    result = :ftp.delete(pid, filename |> String.to_charlist())
-    result
-  end
-
-  @doc """
-  delete a file
-  will return :ok or {:error, reason}
-  it will return :ok even if the folder do not exists
-  """
-  def rm_rf({:ftp, pid}, path) do
-    result = :ftp.rmdir(pid, path |> String.to_charlist())
     result
   end
 

@@ -9,7 +9,7 @@ defmodule Ftp.Mixfile do
       config_path: "config/config.exs",
       deps_path: "deps",
       lockfile: "mix.lock",
-      elixir: "~> 1.3",
+      elixir: "~> 1.13",
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
       deps: deps()
@@ -20,7 +20,9 @@ defmodule Ftp.Mixfile do
   #
   # Type "mix help compile.app" for more information
   def application do
-    [applications: [:logger, :ftp]]
+    [
+      extra_applications: [:logger, :ssh, :inets, :ftp]
+    ]
   end
 
   # Dependencies can be Hex packages:
