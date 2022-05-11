@@ -4,12 +4,11 @@ defmodule FtpTest do
 
   test "parse_ls" do
     list =
-      """
+      ExFtp.parse_ls("""
       drwxr-xr-x   49 1000       ftpgroup         1666 Jan 11 10:02 TMBJJ9NE3E0068343
       drwxr-xr-x   46 1000       ftpgroup         1564 Jan 11 09:53 TMBJM6NJ2GZ103942
       drwxr-xr-x   61 1000       ftpgroup         2074 Jan 11 09:53 TMBKE61Z9C2176855
-      """
-      |> ExFtp.parse_ls()
+      """)
 
     [
       %{name: "TMBJJ9NE3E0068343"},
