@@ -1,6 +1,7 @@
 defmodule ExFtp do
   def _split_host_port(host) do
-    String.split(host, ":")
+    host
+    |> String.split(":")
     |> case do
       [host, port] ->
         {host, String.to_integer(port)}
@@ -147,7 +148,9 @@ defmodule ExFtp do
     :ftp.ls(pid)
     |> case do
       {:ok, listing} ->
-        parse_ls(listing |> List.to_string())
+        listing
+        |> List.to_string()
+        |> parse_ls()
 
       :ok ->
         []
@@ -163,7 +166,10 @@ defmodule ExFtp do
 
   def ls({:ftp, pid}, path) do
     {:ok, listing} = :ftp.ls(pid, s_to_l(path))
-    parse_ls(listing |> List.to_string())
+
+    listing
+    |> List.to_string()
+    |> parse_ls()
   end
 
   def ls({:sftp, pid, _}, path) do
@@ -186,8 +192,7 @@ defmodule ExFtp do
   end
 
   def is_directory?({:ftp, pid}, _path) do
-    :ftp.ls(pid)
-    |> case do
+    case :ftp.ls(pid) do
       {:ok, _} -> true
       _ -> false
     end
@@ -222,8 +227,9 @@ defmodule ExFtp do
   """
   def put({:ftp, pid}, binary, filename) do
     :ftp.type(pid, :binary)
-    result = :ftp.send_bin(pid, binary, filename |> String.to_charlist())
+    result = :ftp.send_bin(pid, binary, String.to_charlist(filename))
     :ftp.type(pid, :ascii)
+
     result
   end
 
@@ -232,7 +238,7 @@ defmodule ExFtp do
   will return :ok or {:error, reason}
   """
   def rm({:ftp, pid}, filename) do
-    :ftp.delete(pid, filename |> String.to_charlist())
+    :ftp.delete(pid, String.to_charlist(filename))
   end
 
   @doc """
@@ -241,7 +247,7 @@ defmodule ExFtp do
   it will return :ok even if the folder do not exists
   """
   def rm_rf({:ftp, pid}, path) do
-    :ftp.rmdir(pid, path |> String.to_charlist())
+    :ftp.rmdir(pid, String.to_charlist(path))
   end
 
   def parse_ls(raw) do
