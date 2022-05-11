@@ -35,10 +35,17 @@ defmodule ExFtp do
     {:sftp, channel_pid, connection}
   end
 
-  def open(host, user, password, _, options) do
-    :inets.start()
-    {:ok, pid} = :inets.start(:ftpc, Keyword.merge(options, host: host |> String.to_charlist()))
-    :ok = :ftp.user(pid, user |> String.to_charlist(), password |> String.to_charlist())
+  def open(host, user, password, _, _options) do
+    host = String.to_charlist(host)
+    user = String.to_charlist(user)
+    password = String.to_charlist(password)
+
+    :ftp.start()
+
+    {:ok, pid} = :ftp.open(host)
+
+    :ok = :ftp.user(pid, user, password)
+
     {:ftp, pid}
   end
 
@@ -51,7 +58,7 @@ defmodule ExFtp do
   end
 
   def close({:ftp, pid}) do
-    :inets.stop(:ftpc, pid)
+    :ftp.close(pid)
   end
 
   defp s_to_l(s) do
@@ -218,6 +225,23 @@ defmodule ExFtp do
     result = :ftp.send_bin(pid, binary, filename |> String.to_charlist())
     :ftp.type(pid, :ascii)
     result
+  end
+
+  @doc """
+  delete a file
+  will return :ok or {:error, reason}
+  """
+  def rm({:ftp, pid}, filename) do
+    :ftp.delete(pid, filename |> String.to_charlist())
+  end
+
+  @doc """
+  delete a file
+  will return :ok or {:error, reason}
+  it will return :ok even if the folder do not exists
+  """
+  def rm_rf({:ftp, pid}, path) do
+    :ftp.rmdir(pid, path |> String.to_charlist())
   end
 
   def parse_ls(raw) do
