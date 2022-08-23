@@ -259,14 +259,15 @@ defmodule ExFtp do
   end
 
   def parse_ls_line(line) do
-    ~r/([di-])[rwx-]{9,9}.+ (.+)/
+    ~r/([di-])[rwx-]{9,9}.+    (.[[:graph:]]+)(.+ )(.+)/
     |> Regex.run(line)
     |> parse_ls_line(line)
   end
 
-  def parse_ls_line([_all, type, name], _line) do
+  def parse_ls_line([_all, type, size, _timestamp, name], _line) do
     %{
       name: name,
+      size: String.trim(size),
       type:
         case type do
           "d" -> :directory

@@ -37,4 +37,11 @@ defmodule FtpTest do
         "-rwxr-xr-x   49 1000       ftpgroup         1666 Jan 11 10:02 TMBJJ9NE3E0068343"
       )
   end
+
+  test "parse_ls_line for size" do
+    %{size: "1666"} =
+      ExFtp.parse_ls_line(
+        "-rwxr-xr-x   49 1000       ftpgroup         1666 Jan 11 10:02 TMBJJ9NE3E0068343"
+      )
+  end
 end
